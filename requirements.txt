@@ -1,0 +1,10 @@
+streamlit
+google-generativeai
+google-genai
+sentence-transformers
+pymilvus
+python-dotenv
+protobuf
+grpcio
+
+##Analyze the Video and Give a detailed Summary of the topics mentioned in the video. Also give saperate key points from the video and provide online resource links.
