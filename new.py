@@ -1,3 +1,6 @@
+
+import time
+
 from pathlib import Path
 from typing import Iterator
 from agno.media import Video
@@ -10,42 +13,90 @@ from agno.embedder.google import GeminiEmbedder
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.utils.pprint import pprint_run_response
 from agno.knowledge.document import DocumentKnowledgeBase
+from agno.utils.log import logger
 
 
 
-while True:
-    user_video_path = input("Please enter the full path to the video file: ")
-    video_path = Path(user_video_path)
-    if video_path.is_file():
-        print(f"Video file found: {video_path}")
-        break
-    else:
-        print(f"Error: File not found at '{user_video_path}'. Please check the path and try again.")
+user_video_path = input("Please enter the full path to the video file: ")
 
-video_object = Video(filepath=video_path)
+model = Gemini(id="gemini-2.0-flash")
 
-# Check if the video file exists
-if not video_path.is_file():
-    raise FileNotFoundError(f"Video file not found at: {video_path}. Please download a sample video or update the path.")
+video_path = Path(__file__).parent.joinpath(user_video_path)
+video_file = None
+remote_file_name = f"files/{video_path.stem.lower().replace('_', '')}"
+try:
+    video_file = model.get_client().files.get(name=remote_file_name)
+except Exception as e:
+    logger.info(f"Error getting file {video_path.stem}: {e}")
+    pass
+
+# Upload the video file if it doesn't exist
+if not video_file:
+    try:
+        logger.info(f"Uploading video: {video_path}")
+        video_file = model.get_client().files.upload(
+            file=video_path,
+            config=dict(name=video_path.stem, display_name=video_path.stem),
+        )
+
+        # Check whether the file is ready to be used.
+        while video_file.state.name == "PROCESSING":
+            time.sleep(2)
+            video_file = model.get_client().files.get(name=video_file.name)
+
+        logger.info(f"Uploaded video: {video_file}")
+    except Exception as e:
+        logger.error(f"Error uploading video: {e}")
+
+
+
 
 # MongoDB Configuration for Knowledge Base
-MDB_CONNECTION_STRING = "mongodb://localhost:57572/?directConnection=true"
+MDB_CONNECTION_STRING = "mongodb://localhost:57451/?directConnection=true"
 DB_COLLECTION_NAME = "Video_Summarization" 
 # --- Main Code ---
 # Step 1: Initialize Video Agent and Generate Description
 print(f"--- Step 1: Analyzing Video ({video_path}) ---")
+
 video_agent = Agent(
-    model=Gemini(id="gemini-2.0-flash-exp"),
+    model=model,
     markdown=True,
     tools=[DuckDuckGoTools()],
     use_json_mode=True
 )
 
 # Use agent.run() to get the description
-video_description_prompt = input("Please enter the prompt to Analyze the video: ")
+video_description_prompt = f"""
+    **Objective:** Analyze the provided video content (e.g., transcript, description) and generate a structured breakdown.
+
+    **Based *only* on the provided information about the video, please provide the following:**
+
+    1.  **Main Topics Covered:**
+        * Identify and list the primary subjects or themes discussed throughout the video. Use a concise bulleted list.
+
+    2.  **Detailed Summary:**
+        * Write a comprehensive summary that accurately captures the main arguments, information flow, key concepts, and conclusions presented in the video.
+        * Structure the summary logically (e.g., following the video's progression or grouping related ideas).
+        * Ensure the summary is detailed enough to give someone who hasn't seen the video a thorough understanding of its content.
+
+    3.  **Key Takeaways / Highlights:**
+        * Extract the most significant points, essential facts, core messages, findings, or actionable advice presented.
+        * List these as clear, concise bullet points, focusing on the essential highlights.
+
+    4.  **Relevant Online Resources:**
+        * Identify and provide links to reputable online resources that directly expand on, support, or are referenced by the topics discussed in the video.
+        * **Priority:** First, include any specific URLs or resource names explicitly mentioned in the video's content or accompanying description (if this information is available).
+        * **Secondary:** If few or no resources are mentioned, find [Specify Number, e.g., 3-5] relevant, high-quality external links (e.g., official websites, reputable articles, academic papers, tools related to the topic).
+        * **Annotation:** Briefly describe the content and relevance of each link provided.
+
+    **Instructions:**
+    * Use clear headings for each of the four sections requested above (e.g., "Main Topics Covered", "Detailed Summary", "Key Takeaways", "Relevant Online Resources").
+    * Derive all summaries and key points *directly* from the provided video information. Do not add external information to the summary or key points.
+    * Ensure the resource links are functional and relevant as of the current date.
+"""
 response: RunResponse = video_agent.run(
     video_description_prompt,
-    videos=[video_object]
+    videos=[Video(content=video_file)]
 )
 
 pprint_run_response(response, markdown=True)
@@ -91,10 +142,32 @@ print("\n--- Step 3: Generating Quiz Questions based on Video Description ---")
 quiz_agent = Agent(
     model=Groq(id="qwen-qwq-32b"),
     knowledge=knowledge_base,
+    show_tool_calls=False
 )
 
 # Ask the quiz agent to generate questions based on the knowledge base content
-quiz_prompt = f"Based *only* on the Knowledge_base, generate 10-20 multiple-choice quiz questions with answers. Exclue Questions related to Online references provided in the video description. The questions should be based on the content of the video and should not include any external references. The questions should be clear and concise, and the answers should be provided in a separate list. The questions should be suitable for a quiz format, with one correct answer and three distractors for each question. Please provide the questions in a numbered list format."
+quiz_prompt = f"""
+    Generate 10-20 multiple-choice quiz questions based *only* on the provided `Knowledge_base`.
+
+    **Requirements:**
+
+    * **Source:** Strictly use information *only* from the `Knowledge_base`. Ignore external data/references mentioned within it.
+    * **Question Phrasing:** Frame questions naturally as standard quiz questions. **Do not use phrases** like "According to the knowledge base..." or similar source attributions.
+    * **Content:** Focus questions on specific details found in the `Knowledge_base`: key facts, concepts, definitions, processes, steps, arguments, or specific terminology presented.
+    * **Format:**
+        * Numbered list for questions.
+        * Each question: 1 correct answer, 3 plausible distractors (labeled A, B, C, D).
+        * Clarity: Questions must be clear and directly answerable from the source.
+    * **Output:** Indicate the correct answer by placing a tick emoji (✅) **directly next to the correct option**. No separate answer key needed.
+
+    **Example (Illustrative):**
+
+    1.  What principle is central to the theory discussed?
+        A. Principle of Relativity
+        B. Principle of Uncertainty
+        C. Principle of Equivalence ✅
+        D. Principle of Conservation
+"""
 
 print(f"\n--- Asking Quiz Agent: '{quiz_prompt}' ---")
 # Use print_response for direct output in this final step
