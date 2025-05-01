@@ -1,8 +1,4 @@
-
-import time
-
 from pathlib import Path
-from typing import Iterator
 from agno.media import Video
 from agno.models.groq import Groq
 from agno.models.google import Gemini
@@ -13,63 +9,45 @@ from agno.embedder.google import GeminiEmbedder
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.utils.pprint import pprint_run_response
 from agno.knowledge.document import DocumentKnowledgeBase
-from agno.utils.log import logger
 
 
+while True:
+    user_video_path = input("Please enter the full path to the video file: ")
+    video_path = Path(__file__).parent.joinpath(user_video_path)
+    if video_path.is_file():
+        print(f"Video file found: {video_path}")
+        break
+    else:
+        print(f"Error: File not found at '{user_video_path}'. Please check the path and try again.")
 
-user_video_path = input("Please enter the full path to the video file: ")
+# Check if the video file exists
+if not video_path.is_file():
+    raise FileNotFoundError(f"Video file not found at: {video_path}. Please download a sample video or update the path.")
 
-model = Gemini(id="gemini-2.0-flash")
-
-video_path = Path(__file__).parent.joinpath(user_video_path)
-video_file = None
-remote_file_name = f"files/{video_path.stem.lower().replace('_', '')}"
-try:
-    video_file = model.get_client().files.get(name=remote_file_name)
-except Exception as e:
-    logger.info(f"Error getting file {video_path.stem}: {e}")
-    pass
-
-# Upload the video file if it doesn't exist
-if not video_file:
-    try:
-        logger.info(f"Uploading video: {video_path}")
-        video_file = model.get_client().files.upload(
-            file=video_path,
-            config=dict(name=video_path.stem, display_name=video_path.stem),
-        )
-
-        # Check whether the file is ready to be used.
-        while video_file.state.name == "PROCESSING":
-            time.sleep(2)
-            video_file = model.get_client().files.get(name=video_file.name)
-
-        logger.info(f"Uploaded video: {video_file}")
-    except Exception as e:
-        logger.error(f"Error uploading video: {e}")
-
-
-
+video = Video(
+content=video_path.read_bytes(), # Load raw bytes
+format="mp4" # Set the format explicitly
+)
 
 # MongoDB Configuration for Knowledge Base
-MDB_CONNECTION_STRING = "mongodb://localhost:57451/?directConnection=true"
+MDB_CONNECTION_STRING = "mongodb://localhost:51083/?directConnection=true"
 DB_COLLECTION_NAME = "Video_Summarization" 
 # --- Main Code ---
 # Step 1: Initialize Video Agent and Generate Description
 print(f"--- Step 1: Analyzing Video ({video_path}) ---")
-
 video_agent = Agent(
-    model=model,
+    model=Gemini(id="gemini-2.0-flash"),
     markdown=True,
     tools=[DuckDuckGoTools()],
-    use_json_mode=True
+    use_json_mode=True,
+    show_tool_calls=False
 )
 
 # Use agent.run() to get the description
 video_description_prompt = f"""
-    **Objective:** Analyze the provided video content (e.g., transcript, description) and generate a structured breakdown.
+    **Objective:** Analyze the provided video content and generate a structured Summary.
 
-    **Based *only* on the provided information about the video, please provide the following:**
+    **Based *only* on the provided video, please provide the following:**
 
     1.  **Main Topics Covered:**
         * Identify and list the primary subjects or themes discussed throughout the video. Use a concise bulleted list.
@@ -94,14 +72,15 @@ video_description_prompt = f"""
     * Derive all summaries and key points *directly* from the provided video information. Do not add external information to the summary or key points.
     * Ensure the resource links are functional and relevant as of the current date.
 """
+
 response: RunResponse = video_agent.run(
     video_description_prompt,
-    videos=[Video(content=video_file)]
+    videos=[video]
 )
 
 pprint_run_response(response, markdown=True)
 
-convert_test = str(response)
+convert_test = response.get_content_as_string()
 
 # Step 2: Store Description in MongoDB Knowledge Base
 print(f"\n--- Step 2: Storing Description in MongoDB (Collection: {DB_COLLECTION_NAME}) ---")
@@ -115,7 +94,7 @@ mongo_vector_db = MongoDb(
     db_url=MDB_CONNECTION_STRING,
     wait_until_index_ready=60, 
     wait_after_insert=5, 
-    embedder=GeminiEmbedder(dimensions=1536), 
+    embedder=GeminiEmbedder(dimensions=1536),
 )
 
 # Create a Document Knowledge Base using the description document and MongoDB
@@ -140,10 +119,11 @@ print("\n--- Step 3: Generating Quiz Questions based on Video Description ---")
 
 # Create the quiz agent, providing the knowledge base
 quiz_agent = Agent(
-    model=Groq(id="qwen-qwq-32b"),
+    model=Groq(id="meta-llama/llama-4-scout-17b-16e-instruct"),
     knowledge=knowledge_base,
-    show_tool_calls=False
-)
+    show_tool_calls=True,
+    
+    )
 
 # Ask the quiz agent to generate questions based on the knowledge base content
 quiz_prompt = f"""
@@ -159,14 +139,6 @@ quiz_prompt = f"""
         * Each question: 1 correct answer, 3 plausible distractors (labeled A, B, C, D).
         * Clarity: Questions must be clear and directly answerable from the source.
     * **Output:** Indicate the correct answer by placing a tick emoji (✅) **directly next to the correct option**. No separate answer key needed.
-
-    **Example (Illustrative):**
-
-    1.  What principle is central to the theory discussed?
-        A. Principle of Relativity
-        B. Principle of Uncertainty
-        C. Principle of Equivalence ✅
-        D. Principle of Conservation
 """
 
 print(f"\n--- Asking Quiz Agent: '{quiz_prompt}' ---")
