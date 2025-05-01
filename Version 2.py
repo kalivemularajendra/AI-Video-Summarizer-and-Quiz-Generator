@@ -23,9 +23,6 @@ if not video_path.is_file():
     raise FileNotFoundError(f"Video file not found at: {video_path}. Please download a sample video or update the path.")
 
 
-# MongoDB Configuration for Knowledge Base
-MDB_CONNECTION_STRING = "mongodb://localhost:51083/?directConnection=true"
-DB_COLLECTION_NAME = "Video_Summarization" 
 
 try:
     with open(video_path, "rb") as f:
