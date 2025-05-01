@@ -3,12 +3,9 @@ from agno.media import Video
 from agno.models.groq import Groq
 from agno.models.google import Gemini
 from agno.document.base import Document
-from agno.vectordb.mongodb import MongoDb
 from agno.agent import Agent, RunResponse
-from agno.embedder.google import GeminiEmbedder
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.utils.pprint import pprint_run_response
-from agno.knowledge.document import DocumentKnowledgeBase
 
 
 while True:
@@ -90,42 +87,11 @@ response: RunResponse = video_agent.run(
 
 pprint_run_response(response, markdown=True)
 
-convert_test = str(response.content)
-
-# Step 2: Store Description in MongoDB Knowledge Base
-print(f"\n--- Step 2: Storing Description in MongoDB (Collection: {DB_COLLECTION_NAME}) ---")
-
-# Create a Document object from the generated text
-description_document = [Document(content=convert_test)]
-
-# Initialize the MongoDB vector store
-mongo_vector_db = MongoDb(
-    collection_name=DB_COLLECTION_NAME,
-    db_url=MDB_CONNECTION_STRING,
-    wait_until_index_ready=60, 
-    wait_after_insert=5, 
-    embedder=GeminiEmbedder(dimensions=1536), 
-)
 
 knowledge_text = convert_test
 
-knowledge_base = DocumentKnowledgeBase(
-    documents=description_document,
-    vector_db=mongo_vector_db,
-)
-
-# Load the knowledge base into MongoDB (recreate=True will delete existing data in the collection)
-try:
-    print("Loading knowledge base into MongoDB...")
-    knowledge_base.load(recreate=True)
-    print("Knowledge base loaded successfully.")
-except Exception as e:
-    print(f"Error loading knowledge base into MongoDB: {e}")
-    exit() 
-
-
 # Step 3: Initialize Quiz Agent and Generate Questions
-print("\n--- Step 3: Generating Quiz Questions based on Video Description ---")
+print("\n--- Step 2: Generating Quiz Questions based on Video Description ---")
 
 # Create the quiz agent, providing the knowledge base
 quiz_agent = Agent(
