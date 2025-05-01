@@ -3,4 +3,4 @@ google-generativeai
 groq
 agno
 pymongo
-duckduckgo
+duckduckgo-search
