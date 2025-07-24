@@ -4,3 +4,5 @@ groq
 agno
 pymongo
 duckduckgo-search
+streamlit
+
