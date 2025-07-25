@@ -1,4 +1,4 @@
-# Agentic-Video-Summarizer-and-Quiz-Generator
+# AI-Video-Summarizer-and-Quiz-Generator
 
 This tool analyzes videos, generates detailed descriptions, stores them in a MongoDB database, and then creates multiple-choice quiz questions based on the video content.
 
