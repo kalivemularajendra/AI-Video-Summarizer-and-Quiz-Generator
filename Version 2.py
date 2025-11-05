@@ -3,7 +3,8 @@ from agno.media import Video
 from agno.models.groq import Groq
 from agno.models.google import Gemini
 from agno.document.base import Document
-from agno.agent import Agent, RunResponse
+from agno.agent import Agent
+from agno.run.agent import RunOutput
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.utils.pprint import pprint_run_response
 
@@ -77,7 +78,7 @@ video_description_prompt = f"""
     * Ensure the resource links are functional and relevant as of the current date.
 """
 
-response: RunResponse = video_agent.run(
+response: RunOutput = video_agent.run(
     video_description_prompt,
     videos=[video_obj]
 )
@@ -127,3 +128,4 @@ Generate 10-20 multiple-choice quiz questions based *only* on the text provided 
 print(f"\n--- Generating Quiz Questions ---")
 # Use print_response for direct output in this final step
 quiz_agent.print_response(quiz_prompt, markdown=True)
+
