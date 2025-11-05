@@ -386,7 +386,7 @@ if uploaded_file is not None:
                     
                     # Execute analysis with timeout protection
                     start_time = time.time()
-                    response: RunResponse = safe_agent_execution(
+                    response: RunOutput = safe_agent_execution(
                         video_agent.run,
                         video_description_prompt,
                         videos=[video_obj]
@@ -580,4 +580,5 @@ st.markdown(
     """, 
     unsafe_allow_html=True
 )
+
 
