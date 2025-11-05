@@ -436,7 +436,6 @@ if uploaded_file is not None:
                 try:
                     quiz_agent = Agent(
                         model=Groq(id="llama-3.3-70b-versatile"),
-                        show_tool_calls=False
                     )
                     
                     quiz_prompt = f"""
@@ -579,6 +578,7 @@ st.markdown(
     """, 
     unsafe_allow_html=True
 )
+
 
 
 
