@@ -10,7 +10,8 @@ import traceback
 from agno.media import Video
 from agno.models.groq import Groq
 from agno.models.google import Gemini
-from agno.agent import Agent, RunResponse
+from agno.agent import Agent
+from agno.run.agent import RunOutput
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.utils.pprint import pprint_run_response
 import io
@@ -579,3 +580,4 @@ st.markdown(
     """, 
     unsafe_allow_html=True
 )
+
