@@ -349,7 +349,6 @@ if uploaded_file is not None:
                         markdown=True,
                         tools=[DuckDuckGoTools()],
                         use_json_mode=True,
-                        show_tool_calls=False
                     )
                     
                     video_description_prompt = """
@@ -580,5 +579,6 @@ st.markdown(
     """, 
     unsafe_allow_html=True
 )
+
 
 
