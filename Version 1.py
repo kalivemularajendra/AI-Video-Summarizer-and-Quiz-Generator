@@ -4,7 +4,8 @@ from agno.models.groq import Groq
 from agno.models.google import Gemini
 from agno.document.base import Document
 from agno.vectordb.mongodb import MongoDb
-from agno.agent import Agent, RunResponse
+from agno.agent import Agent
+from agno.run.agent import RunOutput
 from agno.embedder.google import GeminiEmbedder
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.utils.pprint import pprint_run_response
@@ -73,7 +74,7 @@ video_description_prompt = f"""
     * Ensure the resource links are functional and relevant as of the current date.
 """
 
-response: RunResponse = video_agent.run(
+response: RunOutput = video_agent.run(
     video_description_prompt,
     videos=[video]
 )
@@ -144,4 +145,5 @@ quiz_prompt = f"""
 print(f"\n--- Asking Quiz Agent: '{quiz_prompt}' ---")
 # Use print_response for direct output in this final step
 quiz_agent.print_response(quiz_prompt, markdown=True)
+
 
