@@ -37,7 +37,7 @@ DB_COLLECTION_NAME = "Video_Summarization"
 # Step 1: Initialize Video Agent and Generate Description
 print(f"--- Step 1: Analyzing Video ({video_path}) ---")
 video_agent = Agent(
-    model=Gemini(id="gemini-2.0-flash"),
+    model=Gemini(id="gemini-flash-lite-latest"),
     markdown=True,
     tools=[DuckDuckGoTools()],
     use_json_mode=True,
