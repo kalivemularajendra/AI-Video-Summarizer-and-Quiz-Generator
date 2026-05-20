@@ -345,7 +345,7 @@ if uploaded_file is not None:
             while retry_count < max_retries and not analysis_success:
                 try:
                     video_agent = Agent(
-                        model=Gemini(id="gemini-2.0-flash-lite"),
+                        model=Gemini(id="gemini-flash-lite-latest"),
                         markdown=True,
                         tools=[DuckDuckGoTools()],
                         use_json_mode=True,
