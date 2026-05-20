@@ -41,7 +41,7 @@ video_obj = Video(content=video_bytes)
 # Step 1: Initialize Video Agent and Generate Description
 print(f"--- Step 1: Analyzing Video ({video_path}) ---")
 video_agent = Agent(
-    model=Gemini(id="gemini-2.0-flash-lite"),
+    model=Gemini(id="gemini-flash-lite-latest"),
     markdown=True,
     tools=[DuckDuckGoTools()],
     use_json_mode=True,
